@@ -81,19 +81,42 @@ async function appendRow(row) {
   try {
     const auth = getAuth();
     const sheets = google.sheets({ version: 'v4', auth });
-    await sheets.spreadsheets.values.append({
+    const response = await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A1`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [row] },
     });
-    console.log(`[sheets] Row written: ${row[0]} | ${row[1]} | ${row[3]} → ${row[4]}`);
+    const updatedRange = response.data.updates?.updatedRange || 'unknown range';
+    console.log(`[sheets] Row written to: ${updatedRange} | ${row[0]} | ${row[1]} | ${row[3]} → ${row[4]}`);
+    return { ok: true, updatedRange };
   } catch (err) {
-    console.error(`[sheets] Write failed, queuing for retry. Error: ${err.message}`);
+    console.error(`[sheets] Write failed. Error: ${err.message}`, err.response?.data || '');
     retryQueue.push(row);
     scheduleRetry();
+    return { ok: false, error: err.message, detail: err.response?.data };
   }
+}
+
+/**
+ * Write a single test row and return the result.
+ * Used by the /test-write HTTP endpoint to diagnose sheet issues.
+ */
+async function testWrite() {
+  const row = [
+    formatTimestamp(new Date()),
+    'TEST - BridgeAlert AIS Detector',
+    'AIS DETECTED',
+    'CLOSED',
+    'OPEN',
+    '1.0',
+    'Thursday',
+    'Morning',
+    'Miami-Dade',
+    'AIS',
+  ];
+  return appendRow(row);
 }
 
 function scheduleRetry() {
@@ -118,4 +141,4 @@ function scheduleRetry() {
   }, 30 * 1000);
 }
 
-module.exports = { logEvent };
+module.exports = { logEvent, testWrite };

@@ -6,7 +6,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const BRIDGES = require('./bridges');
 const { BridgeDetector, STATE } = require('./detector');
-const { logEvent } = require('./sheets');
+const { logEvent, testWrite } = require('./sheets');
 
 // ── Environment validation ────────────────────────────────────────────────────
 const AIS_API_KEY = process.env.AIS_API_KEY;
@@ -160,6 +160,8 @@ const server = http.createServer((req, res) => {
       ok: true,
       uptime: process.uptime(),
       wsState: ws ? ws.readyState : -1,
+      sheetId: process.env.GOOGLE_SHEET_ID || 'NOT SET',
+      sheetTab: 'Opening Events',
       bridges: detectors.map((d) => ({
         name: d.bridge.name,
         state: d.state,
@@ -167,6 +169,16 @@ const server = http.createServer((req, res) => {
     };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(status));
+  } else if (req.url === '/test-write' && req.method === 'GET') {
+    testWrite()
+      .then((result) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      })
+      .catch((err) => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: err.message }));
+      });
   } else {
     res.writeHead(404);
     res.end('Not found');
