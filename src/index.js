@@ -155,7 +155,7 @@ function handleMessage(msg) {
 const PORT = process.env.PORT || 3000;
 
 const server = http.createServer((req, res) => {
-  if (req.url === '/health' && req.method === 'GET') {
+  if (req.url === '/health' && (req.method === 'GET' || req.method === 'HEAD')) {
     const status = {
       ok: true,
       uptime: process.uptime(),
